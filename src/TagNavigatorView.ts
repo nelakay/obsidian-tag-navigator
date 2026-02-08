@@ -1,6 +1,7 @@
-import { ItemView, WorkspaceLeaf, TFile, setIcon } from 'obsidian';
+import { ItemView, WorkspaceLeaf, TFile, Menu, MenuItem, setIcon } from 'obsidian';
 import type TagNavigatorPlugin from './main';
 import { VIEW_TYPE_TAG_NAVIGATOR } from './types';
+import { getFilesForTag } from './tagUtils';
 
 interface TagNode {
 	name: string;
@@ -11,8 +12,9 @@ interface TagNode {
 
 export class TagNavigatorView extends ItemView {
 	plugin: TagNavigatorPlugin;
-	private contentEl: HTMLElement;
+	private tagContentEl: HTMLElement;
 	private expandedTags: Set<string> = new Set();
+	private filterQuery = '';
 
 	constructor(leaf: WorkspaceLeaf, plugin: TagNavigatorPlugin) {
 		super(leaf);
@@ -46,18 +48,34 @@ export class TagNavigatorView extends ItemView {
 		refreshBtn.setAttribute('aria-label', 'Refresh');
 		refreshBtn.addEventListener('click', () => this.refresh());
 
+		// Search/filter bar
+		const searchContainer = container.createDiv({ cls: 'tag-navigator-search' });
+		const searchInput = searchContainer.createEl('input', {
+			type: 'text',
+			placeholder: 'Filter tags and files...',
+			cls: 'tag-navigator-search-input',
+		});
+		searchInput.addEventListener('input', () => {
+			this.filterQuery = searchInput.value.toLowerCase();
+			this.renderContent();
+		});
+
 		// Content area
-		this.contentEl = container.createDiv({ cls: 'tag-navigator-content' });
+		this.tagContentEl = container.createDiv({ cls: 'tag-navigator-content' });
 
 		this.refresh();
 	}
 
 	async onClose(): Promise<void> {
-		// Cleanup if needed
+		// Cleanup
 	}
 
 	public refresh(): void {
-		this.contentEl.empty();
+		this.renderContent();
+	}
+
+	private renderContent(): void {
+		this.tagContentEl.empty();
 
 		const selectedTags = this.plugin.settings.selectedTags;
 
@@ -67,20 +85,27 @@ export class TagNavigatorView extends ItemView {
 		}
 
 		const tagTree = this.buildTagTree(selectedTags);
-		this.renderTagTree(tagTree, this.contentEl);
+		const filteredTree = this.filterQuery ? this.filterTree(tagTree) : tagTree;
+
+		if (filteredTree.size === 0 && this.filterQuery) {
+			const noResults = this.tagContentEl.createDiv({ cls: 'tag-navigator-empty' });
+			noResults.createEl('p', { text: 'No tags match your filter.' });
+			return;
+		}
+
+		this.renderTagTree(filteredTree, this.tagContentEl);
 	}
 
 	private renderEmptyState(): void {
-		const emptyState = this.contentEl.createDiv({ cls: 'tag-navigator-empty' });
+		const emptyState = this.tagContentEl.createDiv({ cls: 'tag-navigator-empty' });
 		emptyState.createEl('p', { text: 'No tags selected.' });
 		emptyState.createEl('p', {
-			text: 'Go to Settings → Tag Navigator to select tags to display.',
+			text: 'Go to Settings \u2192 Tag Navigator to select tags to display.',
 			cls: 'tag-navigator-empty-hint',
 		});
 
 		const settingsBtn = emptyState.createEl('button', { text: 'Open Settings' });
 		settingsBtn.addEventListener('click', () => {
-			// Open settings tab
 			const setting = (this.app as any).setting;
 			if (setting) {
 				setting.open();
@@ -93,10 +118,9 @@ export class TagNavigatorView extends ItemView {
 		const rootNodes = new Map<string, TagNode>();
 
 		for (const tag of selectedTags) {
-			const files = this.getFilesForTag(tag);
+			const files = getFilesForTag(this.app, tag);
 
 			if (this.plugin.settings.showNestedTags && tag.includes('/')) {
-				// Handle nested tags
 				const parts = tag.split('/');
 				let currentLevel = rootNodes;
 				let currentPath = '';
@@ -116,7 +140,6 @@ export class TagNavigatorView extends ItemView {
 
 					const node = currentLevel.get(part)!;
 
-					// If this is the final part, add the files
 					if (i === parts.length - 1) {
 						node.files = files;
 					}
@@ -124,7 +147,6 @@ export class TagNavigatorView extends ItemView {
 					currentLevel = node.children;
 				}
 			} else {
-				// Flat tag
 				rootNodes.set(tag, {
 					name: tag,
 					fullPath: tag,
@@ -134,8 +156,29 @@ export class TagNavigatorView extends ItemView {
 			}
 		}
 
-		// Sort the tree
 		return this.sortTagNodes(rootNodes);
+	}
+
+	private filterTree(nodes: Map<string, TagNode>): Map<string, TagNode> {
+		const filtered = new Map<string, TagNode>();
+
+		for (const [key, node] of nodes) {
+			const nameMatches = node.name.toLowerCase().includes(this.filterQuery);
+			const filteredChildren = this.filterTree(node.children);
+			const matchingFiles = node.files.filter(f =>
+				f.basename.toLowerCase().includes(this.filterQuery)
+			);
+
+			if (nameMatches || filteredChildren.size > 0 || matchingFiles.length > 0) {
+				filtered.set(key, {
+					...node,
+					children: nameMatches ? node.children : filteredChildren,
+					files: nameMatches ? node.files : matchingFiles,
+				});
+			}
+		}
+
+		return filtered;
 	}
 
 	private sortTagNodes(nodes: Map<string, TagNode>): Map<string, TagNode> {
@@ -180,10 +223,7 @@ export class TagNavigatorView extends ItemView {
 		const isExpandable = hasChildren || hasFiles;
 		const isExpanded = this.expandedTags.has(node.fullPath);
 
-		// Tag item container
 		const tagItem = container.createDiv({ cls: 'tag-navigator-item' });
-
-		// Tag header (clickable row)
 		const tagHeader = tagItem.createDiv({ cls: 'tag-navigator-item-header' });
 
 		// Collapse/expand icon
@@ -219,21 +259,72 @@ export class TagNavigatorView extends ItemView {
 				} else {
 					this.expandedTags.add(node.fullPath);
 				}
-				this.refresh();
+				this.renderContent();
 			});
 			tagHeader.addClass('is-clickable');
 		}
+
+		// Right-click context menu on tags
+		tagHeader.addEventListener('contextmenu', (e) => {
+			e.preventDefault();
+			const menu = new Menu();
+
+			if (isExpandable) {
+				menu.addItem((item: MenuItem) => {
+					item.setTitle(isExpanded ? 'Collapse' : 'Expand')
+						.setIcon(isExpanded ? 'chevron-right' : 'chevron-down')
+						.onClick(() => {
+							if (isExpanded) {
+								this.expandedTags.delete(node.fullPath);
+							} else {
+								this.expandedTags.add(node.fullPath);
+							}
+							this.renderContent();
+						});
+				});
+			}
+
+			menu.addItem((item: MenuItem) => {
+				item.setTitle('Expand all under this tag')
+					.setIcon('chevrons-down-up')
+					.onClick(() => {
+						this.expandAll(node);
+						this.renderContent();
+					});
+			});
+
+			menu.addItem((item: MenuItem) => {
+				item.setTitle('Collapse all under this tag')
+					.setIcon('chevrons-up-down')
+					.onClick(() => {
+						this.collapseAll(node);
+						this.renderContent();
+					});
+			});
+
+			menu.addSeparator();
+
+			menu.addItem((item: MenuItem) => {
+				item.setTitle('Remove from navigator')
+					.setIcon('x')
+					.onClick(async () => {
+						this.plugin.settings.selectedTags =
+							this.plugin.settings.selectedTags.filter(t => t !== node.fullPath);
+						await this.plugin.saveSettings();
+					});
+			});
+
+			menu.showAtMouseEvent(e);
+		});
 
 		// Children container (only if expanded)
 		if (isExpanded && isExpandable) {
 			const childrenContainer = tagItem.createDiv({ cls: 'tag-navigator-children' });
 
-			// Render child tags first
 			if (hasChildren) {
 				this.renderTagTree(node.children, childrenContainer);
 			}
 
-			// Then render files
 			if (hasFiles) {
 				const sortedFiles = this.sortFiles(node.files);
 				for (const file of sortedFiles) {
@@ -243,29 +334,39 @@ export class TagNavigatorView extends ItemView {
 		}
 	}
 
+	private expandAll(node: TagNode): void {
+		this.expandedTags.add(node.fullPath);
+		for (const child of node.children.values()) {
+			this.expandAll(child);
+		}
+	}
+
+	private collapseAll(node: TagNode): void {
+		this.expandedTags.delete(node.fullPath);
+		for (const child of node.children.values()) {
+			this.collapseAll(child);
+		}
+	}
+
 	private renderFileItem(file: TFile, container: HTMLElement): void {
 		const fileItem = container.createDiv({ cls: 'tag-navigator-file' });
 
-		// File icon
 		const fileIcon = fileItem.createSpan({ cls: 'tag-navigator-file-icon' });
 		setIcon(fileIcon, 'file-text');
 
-		// File name
 		const fileName = fileItem.createSpan({ cls: 'tag-navigator-file-name' });
 		fileName.setText(file.basename);
 
-		// Click to open file
 		fileItem.addEventListener('click', (e) => {
 			e.preventDefault();
 			this.app.workspace.getLeaf(false).openFile(file);
 		});
 
-		// Right-click context menu
 		fileItem.addEventListener('contextmenu', (e) => {
 			e.preventDefault();
-			const menu = new (require('obsidian').Menu)();
+			const menu = new Menu();
 
-			menu.addItem((item: any) => {
+			menu.addItem((item: MenuItem) => {
 				item.setTitle('Open in new tab')
 					.setIcon('file-plus')
 					.onClick(() => {
@@ -273,7 +374,7 @@ export class TagNavigatorView extends ItemView {
 					});
 			});
 
-			menu.addItem((item: any) => {
+			menu.addItem((item: MenuItem) => {
 				item.setTitle('Open to the right')
 					.setIcon('separator-vertical')
 					.onClick(() => {
@@ -281,7 +382,7 @@ export class TagNavigatorView extends ItemView {
 					});
 			});
 
-			menu.addItem((item: any) => {
+			menu.addItem((item: MenuItem) => {
 				item.setTitle('Reveal in file explorer')
 					.setIcon('folder')
 					.onClick(() => {
@@ -298,53 +399,11 @@ export class TagNavigatorView extends ItemView {
 		fileItem.addClass('is-clickable');
 	}
 
-	private getFilesForTag(tag: string): TFile[] {
-		const files: TFile[] = [];
-		const cache = this.app.metadataCache;
-
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const fileCache = cache.getFileCache(file);
-
-			// Check inline tags
-			const hasInlineTag = fileCache?.tags?.some((t) => {
-				const tagName = t.tag.substring(1); // Remove #
-				return tagName === tag || tagName.startsWith(tag + '/');
-			});
-
-			// Check frontmatter tags
-			const hasFrontmatterTag = this.checkFrontmatterTag(fileCache?.frontmatter?.tags, tag);
-
-			if (hasInlineTag || hasFrontmatterTag) {
-				files.push(file);
-			}
-		}
-
-		return files;
-	}
-
-	private checkFrontmatterTag(fmTags: unknown, tag: string): boolean {
-		if (!fmTags) return false;
-
-		if (Array.isArray(fmTags)) {
-			return fmTags.some((t) => {
-				const tagStr = typeof t === 'string' ? t : String(t);
-				return tagStr === tag || tagStr.startsWith(tag + '/');
-			});
-		}
-
-		if (typeof fmTags === 'string') {
-			return fmTags === tag || fmTags.startsWith(tag + '/');
-		}
-
-		return false;
-	}
-
 	private sortFiles(files: TFile[]): TFile[] {
-		return files.sort((a, b) => {
+		return [...files].sort((a, b) => {
 			if (this.plugin.settings.sortOrder === 'alphabetical') {
 				return a.basename.localeCompare(b.basename);
 			} else {
-				// Sort by modification time (newest first) for 'count' mode
 				return b.stat.mtime - a.stat.mtime;
 			}
 		});

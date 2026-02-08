@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian';
+import { Notice, Plugin, debounce } from 'obsidian';
 import { TagNavigatorView } from './TagNavigatorView';
 import { TagNavigatorSettingTab } from './SettingsTab';
 import { TagNavigatorSettings, DEFAULT_SETTINGS, VIEW_TYPE_TAG_NAVIGATOR } from './types';
@@ -7,21 +7,27 @@ export default class TagNavigatorPlugin extends Plugin {
 	settings: TagNavigatorSettings;
 	private view: TagNavigatorView | null = null;
 
-	async onload(): Promise<void> {
-		await this.loadSettings();
+	private debouncedRefresh = debounce(() => {
+		this.refreshView();
+	}, 300, true);
 
-		// Register the custom view
+	async onload(): Promise<void> {
+		try {
+			await this.loadSettings();
+		} catch {
+			new Notice('Tag Navigator: Failed to load settings, using defaults.');
+			this.settings = { ...DEFAULT_SETTINGS };
+		}
+
 		this.registerView(VIEW_TYPE_TAG_NAVIGATOR, (leaf) => {
 			this.view = new TagNavigatorView(leaf, this);
 			return this.view;
 		});
 
-		// Add ribbon icon to open the view
 		this.addRibbonIcon('tags', 'Open Tag Navigator', () => {
 			this.activateView();
 		});
 
-		// Add command to open the view
 		this.addCommand({
 			id: 'open-tag-navigator',
 			name: 'Open Tag Navigator',
@@ -30,7 +36,6 @@ export default class TagNavigatorPlugin extends Plugin {
 			},
 		});
 
-		// Add command to refresh the view
 		this.addCommand({
 			id: 'refresh-tag-navigator',
 			name: 'Refresh Tag Navigator',
@@ -39,41 +44,35 @@ export default class TagNavigatorPlugin extends Plugin {
 			},
 		});
 
-		// Register settings tab
 		this.addSettingTab(new TagNavigatorSettingTab(this.app, this));
 
-		// Listen to metadata changes to refresh the view
 		this.registerEvent(
 			this.app.metadataCache.on('changed', () => {
-				this.refreshView();
+				this.debouncedRefresh();
 			})
 		);
 
-		// Listen to file deletions
 		this.registerEvent(
 			this.app.vault.on('delete', () => {
-				this.refreshView();
+				this.debouncedRefresh();
 			})
 		);
 
-		// Listen to file renames
 		this.registerEvent(
 			this.app.vault.on('rename', () => {
-				this.refreshView();
+				this.debouncedRefresh();
 			})
 		);
 
-		// Auto-open the view in the right sidebar on startup (if it was open before)
 		this.app.workspace.onLayoutReady(() => {
-			if (this.app.workspace.getLeavesOfType(VIEW_TYPE_TAG_NAVIGATOR).length === 0) {
-				// Optionally auto-open - commented out by default
-				// this.activateView();
+			if (this.settings.autoOpen &&
+				this.app.workspace.getLeavesOfType(VIEW_TYPE_TAG_NAVIGATOR).length === 0) {
+				this.activateView();
 			}
 		});
 	}
 
 	onunload(): void {
-		// Cleanup: detach all leaves of this view type
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_TAG_NAVIGATOR);
 	}
 
@@ -92,7 +91,6 @@ export default class TagNavigatorPlugin extends Plugin {
 		let leaf = workspace.getLeavesOfType(VIEW_TYPE_TAG_NAVIGATOR)[0];
 
 		if (!leaf) {
-			// Open in the right sidebar
 			const rightLeaf = workspace.getRightLeaf(false);
 			if (rightLeaf) {
 				await rightLeaf.setViewState({

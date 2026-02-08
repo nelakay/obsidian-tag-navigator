@@ -4,7 +4,7 @@
 	"version": "1.0.0",
 	"minAppVersion": "1.0.0",
 	"description": "A sidebar view that displays selected tags as collapsible folders with their associated notes.",
-	"author": "Your Name",
-	"authorUrl": "",
+	"author": "nelakay",
+	"authorUrl": "https://github.com/nelakay",
 	"isDesktopOnly": false
 }

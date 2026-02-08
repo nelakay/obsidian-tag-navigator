@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type TagNavigatorPlugin from './main';
+import { getAllTags, getFileCountForTag } from './tagUtils';
 
 export class TagNavigatorSettingTab extends PluginSettingTab {
 	plugin: TagNavigatorPlugin;
@@ -15,8 +16,7 @@ export class TagNavigatorSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', { text: 'Tag Navigator Settings' });
 
-		// Get all tags from the vault
-		const allTags = this.getAllTags();
+		const allTags = getAllTags(this.app);
 
 		// Tag selection section
 		containerEl.createEl('h3', { text: 'Select Tags to Display' });
@@ -74,7 +74,7 @@ export class TagNavigatorSettingTab extends PluginSettingTab {
 
 				new Setting(tagListContainer)
 					.setName(tag)
-					.setDesc(`${this.getFileCountForTag(tag)} notes`)
+					.setDesc(`${getFileCountForTag(this.app, tag)} notes`)
 					.addToggle((toggle) =>
 						toggle.setValue(isSelected).onChange(async (value) => {
 							if (value) {
@@ -97,7 +97,7 @@ export class TagNavigatorSettingTab extends PluginSettingTab {
 
 		renderTagList();
 
-		// Additional settings
+		// Display options
 		containerEl.createEl('h3', { text: 'Display Options' });
 
 		new Setting(containerEl)
@@ -123,68 +123,15 @@ export class TagNavigatorSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-	}
 
-	private getAllTags(): string[] {
-		const tags = new Set<string>();
-		const cache = this.app.metadataCache;
-
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const fileCache = cache.getFileCache(file);
-			if (fileCache?.tags) {
-				for (const tagObj of fileCache.tags) {
-					// Remove the # prefix for storage
-					tags.add(tagObj.tag.substring(1));
-				}
-			}
-			// Also check frontmatter tags
-			if (fileCache?.frontmatter?.tags) {
-				const fmTags = fileCache.frontmatter.tags;
-				if (Array.isArray(fmTags)) {
-					for (const tag of fmTags) {
-						tags.add(typeof tag === 'string' ? tag : String(tag));
-					}
-				} else if (typeof fmTags === 'string') {
-					tags.add(fmTags);
-				}
-			}
-		}
-
-		return Array.from(tags).sort((a, b) => a.localeCompare(b));
-	}
-
-	private getFileCountForTag(tag: string): number {
-		let count = 0;
-		const cache = this.app.metadataCache;
-
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const fileCache = cache.getFileCache(file);
-			const hasInlineTag = fileCache?.tags?.some(
-				(t) => t.tag.substring(1) === tag || t.tag.substring(1).startsWith(tag + '/')
+		new Setting(containerEl)
+			.setName('Auto-open on startup')
+			.setDesc('Automatically open the Tag Navigator sidebar when Obsidian starts')
+			.addToggle((toggle) =>
+				toggle.setValue(this.plugin.settings.autoOpen).onChange(async (value) => {
+					this.plugin.settings.autoOpen = value;
+					await this.plugin.saveSettings();
+				})
 			);
-			const hasfrontmatterTag = this.hasFrontmatterTag(fileCache?.frontmatter?.tags, tag);
-
-			if (hasInlineTag || hasfrontmatterTag) {
-				count++;
-			}
-		}
-
-		return count;
-	}
-
-	private hasFrontmatterTag(fmTags: unknown, tag: string): boolean {
-		if (!fmTags) return false;
-
-		if (Array.isArray(fmTags)) {
-			return fmTags.some(
-				(t) => t === tag || (typeof t === 'string' && t.startsWith(tag + '/'))
-			);
-		}
-
-		if (typeof fmTags === 'string') {
-			return fmTags === tag || fmTags.startsWith(tag + '/');
-		}
-
-		return false;
 	}
 }
