@@ -65,6 +65,14 @@ export default class TagNavigatorPlugin extends Plugin {
 			})
 		);
 
+		this.registerEvent(
+			this.app.workspace.on('active-leaf-change', () => {
+				if (this.view) {
+					this.view.updateActiveFile();
+				}
+			})
+		);
+
 		this.app.workspace.onLayoutReady(() => {
 			if (this.settings.autoOpen &&
 				this.app.workspace.getLeavesOfType(VIEW_TYPE_TAG_NAVIGATOR).length === 0) {

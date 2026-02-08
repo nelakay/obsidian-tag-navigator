@@ -15,6 +15,7 @@ export class TagNavigatorView extends ItemView {
 	private tagContentEl: HTMLElement;
 	private expandedTags: Set<string> = new Set();
 	private filterQuery = '';
+	private activeFilePath: string | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: TagNavigatorPlugin) {
 		super(leaf);
@@ -71,7 +72,21 @@ export class TagNavigatorView extends ItemView {
 	}
 
 	public refresh(): void {
+		this.activeFilePath = this.app.workspace.getActiveFile()?.path ?? null;
 		this.renderContent();
+	}
+
+	public updateActiveFile(): void {
+		const newPath = this.app.workspace.getActiveFile()?.path ?? null;
+		if (newPath === this.activeFilePath) return;
+		this.activeFilePath = newPath;
+
+		// Swap .is-active class on existing DOM elements without a full re-render
+		const fileItems = this.tagContentEl.querySelectorAll('.tag-navigator-file');
+		fileItems.forEach((el) => {
+			const path = el.getAttribute('data-path');
+			el.toggleClass('is-active', path === this.activeFilePath);
+		});
 	}
 
 	private renderContent(): void {
@@ -325,7 +340,8 @@ export class TagNavigatorView extends ItemView {
 				this.renderTagTree(node.children, childrenContainer);
 			}
 
-			if (hasFiles) {
+			const hideFiles = this.plugin.settings.hideParentFiles && hasChildren;
+			if (hasFiles && !hideFiles) {
 				const sortedFiles = this.sortFiles(node.files);
 				for (const file of sortedFiles) {
 					this.renderFileItem(file, childrenContainer);
@@ -350,6 +366,11 @@ export class TagNavigatorView extends ItemView {
 
 	private renderFileItem(file: TFile, container: HTMLElement): void {
 		const fileItem = container.createDiv({ cls: 'tag-navigator-file' });
+		fileItem.setAttribute('data-path', file.path);
+
+		if (file.path === this.activeFilePath) {
+			fileItem.addClass('is-active');
+		}
 
 		const fileIcon = fileItem.createSpan({ cls: 'tag-navigator-file-icon' });
 		setIcon(fileIcon, 'file-text');

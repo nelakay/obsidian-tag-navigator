@@ -125,6 +125,16 @@ export class TagNavigatorSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName('Hide files on parent tags')
+			.setDesc('When a parent tag has child tags, only show the child tag folders and hide the parent\'s direct files')
+			.addToggle((toggle) =>
+				toggle.setValue(this.plugin.settings.hideParentFiles).onChange(async (value) => {
+					this.plugin.settings.hideParentFiles = value;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
 			.setName('Auto-open on startup')
 			.setDesc('Automatically open the Tag Navigator sidebar when Obsidian starts')
 			.addToggle((toggle) =>

@@ -194,6 +194,19 @@
 	background: var(--background-modifier-hover);
 }
 
+.tag-navigator-file.is-active {
+	background: var(--background-modifier-hover);
+	color: var(--text-accent);
+}
+
+.tag-navigator-file.is-active .tag-navigator-file-icon {
+	color: var(--text-accent);
+}
+
+.tag-navigator-file.is-active .tag-navigator-file-name {
+	font-weight: 600;
+}
+
 .tag-navigator-file-icon {
 	width: 16px;
 	height: 16px;
