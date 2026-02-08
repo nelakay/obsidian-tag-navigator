@@ -1,0 +1,245 @@
+/* Tag Navigator Plugin Styles */
+
+.tag-navigator-container {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Header */
+.tag-navigator-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.tag-navigator-title {
+	font-weight: 600;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.tag-navigator-refresh {
+	background: transparent;
+	border: none;
+	padding: 4px;
+	cursor: pointer;
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.tag-navigator-refresh:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* Content area */
+.tag-navigator-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 4px 0;
+}
+
+/* Empty state */
+.tag-navigator-empty {
+	padding: 20px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.tag-navigator-empty p {
+	margin: 8px 0;
+}
+
+.tag-navigator-empty-hint {
+	font-size: var(--font-ui-smaller);
+}
+
+.tag-navigator-empty button {
+	margin-top: 12px;
+}
+
+/* Tag items */
+.tag-navigator-item {
+	user-select: none;
+}
+
+.tag-navigator-item-header {
+	display: flex;
+	align-items: center;
+	padding: 4px 8px;
+	gap: 4px;
+	border-radius: var(--radius-s);
+	margin: 0 4px;
+}
+
+.tag-navigator-item-header.is-clickable {
+	cursor: pointer;
+}
+
+.tag-navigator-item-header.is-clickable:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Collapse icon */
+.tag-navigator-collapse-icon {
+	width: 18px;
+	height: 18px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.tag-navigator-collapse-icon.is-placeholder {
+	visibility: hidden;
+}
+
+.tag-navigator-collapse-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Tag icon */
+.tag-navigator-tag-icon {
+	width: 16px;
+	height: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	color: var(--text-accent);
+}
+
+.tag-navigator-tag-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Tag name */
+.tag-navigator-tag-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-small);
+}
+
+/* Count badge */
+.tag-navigator-count {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+	padding: 1px 6px;
+	border-radius: var(--radius-s);
+	flex-shrink: 0;
+}
+
+/* Children container (indentation) */
+.tag-navigator-children {
+	padding-left: 16px;
+	border-left: 1px solid var(--background-modifier-border);
+	margin-left: 16px;
+}
+
+/* File items */
+.tag-navigator-file {
+	display: flex;
+	align-items: center;
+	padding: 4px 8px;
+	gap: 6px;
+	border-radius: var(--radius-s);
+	margin: 0 4px;
+}
+
+.tag-navigator-file.is-clickable {
+	cursor: pointer;
+}
+
+.tag-navigator-file.is-clickable:hover {
+	background: var(--background-modifier-hover);
+}
+
+.tag-navigator-file-icon {
+	width: 16px;
+	height: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	color: var(--text-muted);
+}
+
+.tag-navigator-file-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.tag-navigator-file-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-small);
+}
+
+/* Settings styles */
+.tag-list-container {
+	max-height: 400px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	margin-top: 8px;
+	padding: 8px;
+}
+
+.tag-search-container {
+	margin-top: 12px;
+}
+
+.tag-search-input {
+	width: 100%;
+	padding: 8px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.tag-search-input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+.tag-empty-message {
+	text-align: center;
+	color: var(--text-muted);
+	padding: 20px;
+}
+
+/* Responsive scrollbar */
+.tag-navigator-content::-webkit-scrollbar,
+.tag-list-container::-webkit-scrollbar {
+	width: 6px;
+}
+
+.tag-navigator-content::-webkit-scrollbar-thumb,
+.tag-list-container::-webkit-scrollbar-thumb {
+	background: var(--background-modifier-border);
+	border-radius: 3px;
+}
+
+.tag-navigator-content::-webkit-scrollbar-thumb:hover,
+.tag-list-container::-webkit-scrollbar-thumb:hover {
+	background: var(--background-modifier-border-hover);
+}
