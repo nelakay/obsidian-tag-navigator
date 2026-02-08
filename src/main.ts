@@ -2,6 +2,7 @@ import { Notice, Plugin, debounce } from 'obsidian';
 import { TagNavigatorView } from './TagNavigatorView';
 import { TagNavigatorSettingTab } from './SettingsTab';
 import { TagNavigatorSettings, DEFAULT_SETTINGS, VIEW_TYPE_TAG_NAVIGATOR } from './types';
+import { getAllTags } from './tagUtils';
 
 export default class TagNavigatorPlugin extends Plugin {
 	settings: TagNavigatorSettings;
@@ -107,8 +108,20 @@ export default class TagNavigatorPlugin extends Plugin {
 	}
 
 	private refreshView(): void {
+		this.pruneStaleSelectedTags();
 		if (this.view) {
 			this.view.refresh();
+		}
+	}
+
+	private pruneStaleSelectedTags(): void {
+		const vaultTags = new Set(getAllTags(this.app));
+		const before = this.settings.selectedTags.length;
+		this.settings.selectedTags = this.settings.selectedTags.filter(
+			tag => vaultTags.has(tag)
+		);
+		if (this.settings.selectedTags.length !== before) {
+			this.saveData(this.settings);
 		}
 	}
 }
